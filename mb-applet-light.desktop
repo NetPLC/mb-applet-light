@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Backlight control
+Comment=Panel based backlight control
+Exec=mb-applet-light
+Type=PanelApp
+Icon=mblight-high.png
+Categories=Panel;Utility;MB
