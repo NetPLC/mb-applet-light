@@ -1,8 +1,8 @@
-/* mb-light-applet - A tiny back-light control tray app
+/* mb-applet-light - A tiny back-light control tray app
 
-   GTk bits based on GPE's minilite.c bu p.blundell
+   by Chris Lord <chris@openedhand.com>, based on mb-applet-volume
 
-   Copyright 2004 Matthew Allum
+   Copyright 2006 OpenedHand Ltd.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,6 +61,8 @@
 #define SLIDER_HEIGHT 100
 
 #define SYSCLASS 	"/sys/class/backlight/"
+#define SYS_STATE_ON  0
+#define SYS_STATE_OFF 4
 static char *SYS_BRIGHTNESS = NULL;
 static char *SYS_MAXBRIGHTNESS = NULL;
 static char *SYS_POWER = NULL;
@@ -94,7 +96,7 @@ static gboolean
 setup_sysclass(void)
 {
 	GDir *dir;
-	gchar *dirname = NULL;
+	const gchar *dirname;
 	gboolean retval = FALSE;
 	
 	if (!(dir = g_dir_open (SYSCLASS, 0, NULL))) {
@@ -127,7 +129,7 @@ sysclass_set_level (gint level)
 		fprintf (f_light,"%d\n", level);
 		fclose (f_light);
 	} else
-		return -1;
+		return;
 
 	f_light = fopen (SYS_POWER, "w");
 	if (f_light != NULL) {
@@ -176,13 +178,10 @@ paint_callback (MBTrayApp *app, Drawable drw )
   
   img_backing = mb_tray_app_get_background (app, pb);
 
-  if (!err_str)
-    {
-      img_index = (Brightness*4)/MaxBrightness;
+  img_index = (Brightness*4)/MaxBrightness;
 
-      if (img_index > 3) img_index = 3;
-      if (img_index < 0) img_index = 0;
-    }
+  if (img_index > 3) img_index = 3;
+  if (img_index < 0) img_index = 0;
 
   /* CurrentLightLevel */
   mb_pixbuf_img_composite(pb, img_backing, 
@@ -329,7 +328,7 @@ popup_light_changed_cb (GtkAdjustment *adj, gpointer data)
   
   Brightness = gtk_adjustment_get_value (adj);
 
-  sysclass_set_level (app, value);
+  sysclass_set_level (value);
 
   mb_tray_app_repaint(app);
 }
