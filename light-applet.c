@@ -79,7 +79,6 @@ static MBPixbuf *pb;
 static MBPixbufImage *Imgs[4] = { 0,0,0,0 }, *ImgsScaled[4] = { 0,0,0,0 };
 
 static Window WinPopup;
-static int    mixerfd;
 static Bool   PopupIsMapped = False;
 
 static int    PopupYOffset  = 5;
@@ -106,11 +105,11 @@ setup_sysclass(void)
 	
 	if ((dirname = g_dir_read_name (dir))) {
 		SYS_BRIGHTNESS = g_strconcat (SYSCLASS, dirname,
-			G_DIR_SEPARATOR_S, "brightness", NULL);
+			"/brightness", NULL);
 		SYS_MAXBRIGHTNESS = g_strconcat (SYSCLASS, dirname,
-			G_DIR_SEPARATOR_S, "max_brightness", NULL);
+			"/max_brightness", NULL);
 		SYS_POWER = g_strconcat (SYSCLASS, dirname,
-			G_DIR_SEPARATOR_S, "power", NULL);
+			"/power", NULL);
 		retval = TRUE;
 	}
 	
@@ -131,11 +130,11 @@ sysclass_set_level (gint level)
 	} else
 		return;
 
-	f_light = fopen (SYS_POWER, "w");
+/*	f_light = fopen (SYS_POWER, "w");
 	if (f_light != NULL) {
 		fprintf (f_light,"%d\n",  level ? SYS_STATE_ON : SYS_STATE_OFF);
 		fclose (f_light);
-	}
+	}*/
 }
 
 static gint
@@ -302,19 +301,20 @@ button_callback (MBTrayApp *app, int cx, int cy, Bool is_released)
 			 mb_tray_app_xscreen(app)) - win_w - 2;
     }
 
-  
-  
+    
   gtk_widget_set_uposition (GTK_WIDGET (slider_window), x, y);
   
   Brightness = sysclass_get_level ();
   MaxBrightness = sysclass_get_maxlevel ();
 
+  gtk_range_set_range (GTK_RANGE (slider), 1, (gdouble)MaxBrightness);
   gtk_adjustment_set_value(gtk_range_get_adjustment(GTK_RANGE(slider)), 
 			   Brightness);
 
   gtk_widget_show_all (slider_window);
 
-  gdk_pointer_grab (slider_window->window, TRUE, GDK_BUTTON_PRESS_MASK, NULL, NULL, CurrentTime);
+  gdk_pointer_grab (slider_window->window, TRUE, GDK_BUTTON_PRESS_MASK, NULL,
+                    NULL, CurrentTime);
 
   PopupIsMapped = True;
 }
@@ -323,12 +323,11 @@ button_callback (MBTrayApp *app, int cx, int cy, Bool is_released)
 void
 popup_light_changed_cb (GtkAdjustment *adj, gpointer data)
 {
-  int value;
   MBTrayApp *app = (MBTrayApp *)data;
   
   Brightness = gtk_adjustment_get_value (adj);
 
-  sysclass_set_level (value);
+  sysclass_set_level (Brightness);
 
   mb_tray_app_repaint(app);
 }
@@ -339,30 +338,13 @@ popup_init(MBTrayApp *app)
   GtkWidget     *vbox;
   GtkWidget     *hbox;
   GtkWidget     *label;
-  GtkWidget     *button_ok;
   GtkAdjustment *adj;
 
-  vbox = gtk_vbox_new (FALSE, 2);
-
-  /* hbox for text */
-  hbox = gtk_hbox_new (FALSE, 2);
-
-  label = gtk_label_new(NULL);
-  gtk_label_set_markup (GTK_LABEL(label), "<b>Low</b>");
-
-  gtk_box_pack_start (GTK_BOX (hbox), label, TRUE, TRUE, 0);
-
-  label = gtk_label_new(NULL);
-  gtk_label_set_markup (GTK_LABEL(label), "<b>High</b>");
-
-  gtk_box_pack_end (GTK_BOX (hbox), label, TRUE, TRUE, 0);
-
-  gtk_box_pack_start (GTK_BOX (vbox), hbox, TRUE, TRUE, 0);
-
   slider_window = gtk_window_new (GTK_WINDOW_POPUP);
+  gtk_container_set_border_width (GTK_CONTAINER (slider_window), 6);
 
-  slider = gtk_vscale_new_with_range (0, 100, 1);
-
+  slider = gtk_vscale_new_with_range (1, 100, 1);
+  gtk_range_set_value (GTK_RANGE (slider), (gdouble)Brightness);
   gtk_scale_set_draw_value (GTK_SCALE (slider), FALSE);
   gtk_widget_set_usize (slider_window, -1, SLIDER_HEIGHT);
   gtk_range_set_inverted (GTK_RANGE (slider), TRUE);
@@ -374,57 +356,10 @@ popup_init(MBTrayApp *app)
   
   gtk_container_add (GTK_CONTAINER (slider_window), slider);
 
-  /*
-  g_signal_connect (G_OBJECT (window), "button-press-event", G_CALLBACK (clicked), NULL);
-  */
-
-  g_signal_connect (G_OBJECT (slider_window), "button-press-event", G_CALLBACK (slider_clicked), NULL);
-
-  gtk_widget_add_events (slider_window, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK);
-
-
-  /*
-  gtk_window_set_decorated (GTK_WINDOW(slider_window), FALSE);
-
-  gtk_window_set_type_hint (GTK_WINDOW(slider_window), 
-			    GDK_WINDOW_TYPE_HINT_DIALOG);
-
-  gtk_widget_set_usize (slider_window, SLIDER_WIN_WIDTH, -1 ); 
-
-  slider = gtk_hscale_new_with_range (0, 100, 1);
-
-  gtk_scale_set_draw_value (GTK_SCALE (slider), FALSE);
-
-  adj = gtk_range_get_adjustment (GTK_RANGE (slider)); 
-
-  g_signal_connect (G_OBJECT (adj), "value-changed", 
-		    G_CALLBACK (popup_light_changed_cb), (gpointer)app);
-  
-  gtk_box_pack_start (GTK_BOX (vbox), slider, TRUE, TRUE, 0);
-
-  hbox = gtk_hbox_new (FALSE, 2);
-
-  button_mute = gtk_check_button_new_with_label ( "Mute" );  
-  */
-
-  /*
-  gtk_box_pack_start (GTK_BOX (hbox), button_mute, TRUE, TRUE, 0);
-  */
-
-  button_ok = gtk_button_new_from_stock(GTK_STOCK_OK);
-
-  gtk_box_pack_end (GTK_BOX (hbox), button_ok, FALSE, FALSE, 0);
-
-  /* XXX mute callback */
-
-  gtk_box_pack_end (GTK_BOX (vbox), hbox, TRUE, TRUE, 0);
-
-  gtk_container_set_border_width (GTK_CONTAINER (slider_window), 6);
-
-  gtk_container_add (GTK_CONTAINER (slider_window), vbox);
-
-  g_signal_connect (G_OBJECT (button_ok), "clicked", 
-		    G_CALLBACK (popup_close), NULL);
+  g_signal_connect (G_OBJECT (slider_window), "button-press-event",
+                    G_CALLBACK (slider_clicked), NULL);
+  gtk_widget_add_events (slider_window, GDK_BUTTON_PRESS_MASK |
+                         GDK_BUTTON_RELEASE_MASK);
 
   gtk_widget_realize (slider_window);
 }
@@ -454,7 +389,7 @@ brightness_timeout_cb (MBTrayApp *app)
     {
       Brightness = this_bri;
 
-      gtk_adjustment_set_value(gtk_range_get_adjustment(GTK_RANGE(slider)), 
+    gtk_adjustment_set_value(gtk_range_get_adjustment(GTK_RANGE(slider)), 
 			       Brightness);
 
       mb_tray_app_repaint(app);
@@ -466,9 +401,6 @@ brightness_timeout_cb (MBTrayApp *app)
 int
 main( int argc, char *argv[])
 {
-  char *mixer_dev = "/dev/mixer";
-  int devmask = 0;
-
   MBTrayApp *app = NULL;
 
   gtk_init (&argc, &argv);
@@ -483,35 +415,31 @@ main( int argc, char *argv[])
   if (!setup_sysclass ())
     g_error ("Failed to open a backlight");
 
-  app = mb_tray_app_new_with_display ( "Brightness Control",
+  Brightness = sysclass_get_level ();
+  MaxBrightness = sysclass_get_maxlevel ();
+
+  if (!(app = mb_tray_app_new_with_display ( "Backlight control",
 				       resize_callback,
 				       paint_callback,
 				       &argc,
 				       &argv,
-				       GDK_DISPLAY ());  
-  
-  if (!app) exit(0); 
+				       GDK_DISPLAY ()))) exit (0);
   
   pb = mb_pixbuf_new(mb_tray_app_xdisplay(app), 
 		     mb_tray_app_xscreen(app));
   
   mb_tray_app_set_theme_change_callback (app, theme_callback );
-
   mb_tray_app_set_button_callback (app, button_callback );
   
-  gtk_timeout_add (500,
-		   (GSourceFunc) brightness_timeout_cb,
-		   app);
-  
   load_icons();
-  
   mb_tray_app_set_icon(app, pb, Imgs[3]);
 
   popup_init(app);
-
   mb_tray_app_main_init (app);
   
   gdk_window_add_filter (NULL, event_filter, (gpointer)app );
+  
+  g_timeout_add (500, (GSourceFunc) brightness_timeout_cb, app);
   
   gtk_main ();
   
